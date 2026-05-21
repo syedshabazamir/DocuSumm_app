@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:summarize_app/screens/signinscreen.dart';
 import 'package:summarize_app/screens/splashscreen.dart';
 
 void main() {

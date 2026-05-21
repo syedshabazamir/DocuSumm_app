@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:summarize_app/screens/homescreen.dart';
 import 'package:summarize_app/utils/colors.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -250,7 +251,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signUp,
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => HomeScreen()),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.amber,
                     disabledBackgroundColor: AppColors.dim,
