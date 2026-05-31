@@ -1,7 +1,17 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:summarize_app/screens/splashscreen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: FirebaseOptions(
+      apiKey: "AIzaSyBQnnvvjWvxeGXah83TnqaRS9901hBf7Gs",
+      appId: "1:949061400829:android:3c1326cc7cda692ddce694",
+      messagingSenderId: "949061400829",
+      projectId: "cloudapp-c213f",
+    ),
+  );
   runApp(const DocuSummApp());
 }
 

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:summarize_app/screens/accountscreen.dart';
 import 'package:summarize_app/screens/historyscreen.dart';
 import 'package:summarize_app/utils/colors.dart';
 import 'package:summarize_app/widget/bottom_navig_bar.dart';
-import 'package:summarize_app/screens/historyscreen.dart';
-import 'package:summarize_app/screens/accountscreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,10 +16,40 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTab = 0;
   String _selectedStyle = 'Brief';
+  String _userName = '';
 
   final List<String> _styles = ['Brief', 'Key points', 'Detailed', 'Executive'];
 
-  // all screens listed here
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+    if (doc.exists && mounted) {
+      final fullName = doc.data()?['fullName'] ?? '';
+      // Show only first name
+      setState(() {
+        _userName = fullName.split(' ').first;
+      });
+    }
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
+  }
+
   Widget _getScreen() {
     if (_selectedTab == 1) return const Historyscreen();
     if (_selectedTab == 2) return const AccountScreen();
@@ -33,10 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // show the current screen
             Expanded(child: _getScreen()),
-
-            // Bottom nav bar
             BottomNavBar(
               index: _selectedTab,
               onTap: (i) => setState(() => _selectedTab = i),
@@ -47,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Home body ────────────────────────────────────────────
   Widget _buildHomeBody() {
     return Column(
       children: [
@@ -60,14 +86,17 @@ class _HomeScreenState extends State<HomeScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Good morning',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  Text(
+                    _getGreeting(), // ← dynamic greeting
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 13,
+                    ),
                   ),
                   RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       children: [
-                        TextSpan(
+                        const TextSpan(
                           text: 'Hey, ',
                           style: TextStyle(
                             color: AppColors.text,
@@ -76,8 +105,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         TextSpan(
-                          text: 'Alex',
-                          style: TextStyle(
+                          text:
+                              _userName.isEmpty
+                                  ? '...'
+                                  : _userName, // ← real name
+                          style: const TextStyle(
                             color: AppColors.amberLight,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -106,14 +138,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        // Scrollable content
+        // Scrollable content — rest stays exactly the same
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Upload box
                 GestureDetector(
                   onTap: () {},
                   child: Container(
@@ -155,7 +186,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 24),
 
-                // Summary style label
                 const Text(
                   'SUMMARY STYLE',
                   style: TextStyle(
@@ -167,7 +197,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 10),
 
-                // Style pills
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -230,7 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 28),
 
-                // Generate button
                 SizedBox(
                   width: double.infinity,
                   height: 50,

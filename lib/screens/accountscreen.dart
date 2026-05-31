@@ -1,9 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:summarize_app/screens/signinscreen.dart';
 import 'package:summarize_app/utils/colors.dart';
 
-class AccountScreen extends StatelessWidget {
+class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
+
+  @override
+  State<AccountScreen> createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends State<AccountScreen> {
+  String _fullName = '';
+  String _email = '';
+  String _initials = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      user = await FirebaseAuth.instance.authStateChanges().firstWhere(
+        (u) => u != null,
+      );
+    }
+
+    if (user == null || !mounted) return;
+
+    final email = user.email ?? '';
+
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      final fullName = (doc.data()?['fullName'] ?? '') as String;
+
+      final parts = fullName.trim().split(' ');
+      final filtered = parts.where((String w) => w.isNotEmpty).take(2).toList();
+      final initials = filtered.map((String w) => w[0].toUpperCase()).join();
+
+      if (mounted) {
+        setState(() {
+          _fullName = fullName;
+          _email = email;
+          _initials = initials.isEmpty ? '?' : initials;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +68,6 @@ class AccountScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
             const Text(
               'Account',
               style: TextStyle(
@@ -34,7 +88,7 @@ class AccountScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // Avatar
+                  // Avatar with real initials
                   Container(
                     width: 48,
                     height: 48,
@@ -43,32 +97,47 @@ class AccountScreen extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.amber),
                     ),
-                    child: const Center(
-                      child: Text(
-                        'A',
-                        style: TextStyle(
-                          color: AppColors.amberLight,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    child: Center(
+                      child:
+                          _initials.isEmpty
+                              ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.amber,
+                                ),
+                              )
+                              : Text(
+                                _initials,
+                                style: const TextStyle(
+                                  color: AppColors.amberLight,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Alex Johnson',
-                        style: TextStyle(
+                      // Real full name
+                      Text(
+                        _fullName.isEmpty ? '...' : _fullName,
+                        style: const TextStyle(
                           color: AppColors.text,
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Text(
-                        'alex@example.com',
-                        style: TextStyle(color: AppColors.muted, fontSize: 12),
+                      // Real email
+                      Text(
+                        _email.isEmpty ? '...' : _email,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Container(
@@ -109,7 +178,6 @@ class AccountScreen extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Stats grid — numbers hidden until Firebase
             Row(
               children: [
                 _statCard('—', 'documents'),
@@ -128,7 +196,6 @@ class AccountScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Settings label
             const Text(
               'SETTINGS',
               style: TextStyle(
@@ -140,7 +207,6 @@ class AccountScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
-            // Settings items
             _settingsItem(
               context,
               icon: Icons.person_outline,
@@ -168,7 +234,6 @@ class AccountScreen extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Logout
             _settingsItem(
               context,
               icon: Icons.logout,
@@ -182,7 +247,6 @@ class AccountScreen extends StatelessWidget {
     );
   }
 
-  // stat card widget
   Widget _statCard(String value, String label) {
     return Expanded(
       child: Container(
@@ -214,7 +278,6 @@ class AccountScreen extends StatelessWidget {
     );
   }
 
-  // settings row widget
   Widget _settingsItem(
     BuildContext context, {
     required IconData icon,
@@ -260,7 +323,6 @@ class AccountScreen extends StatelessWidget {
     );
   }
 
-  // coming soon snackbar
   void _comingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -277,12 +339,60 @@ class AccountScreen extends StatelessWidget {
     );
   }
 
-  // logout and go to sign in
-  void _logout(BuildContext context) {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const SignInScreen()),
-      (route) => false,
+  void _logout(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Sign out',
+              style: TextStyle(
+                color: AppColors.text,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              'Are you sure you want to sign out?',
+              style: TextStyle(color: AppColors.muted, fontSize: 14),
+            ),
+            actions: [
+              // Cancel button
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColors.muted),
+                ),
+              ),
+              // Sign out button
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SignInScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text('Sign out'),
+              ),
+            ],
+          ),
     );
   }
 }
